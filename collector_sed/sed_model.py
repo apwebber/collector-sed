@@ -150,11 +150,13 @@ class CollectionSection:
         for _ in range(self.number_of_cells):
             self.cells.append(copy.deepcopy(self.seed_cell))
 
-    def run_model(self):
+    def run_model(self, stop: int = None):
         # Iterate over cells from right to left appling the
         # Collector vehicle
 
         for i, c in enumerate(self.cells):
+            if stop is not None and i == stop:
+                break
             c.apply_collector(self.collector)
             self._iterate_cells(str(i))
 
@@ -226,13 +228,13 @@ class CollectionSection:
 if __name__ == "__main__":
     cp = CollectorParams(collector_width=15, cut_depth=0.1)
     sc = SedCell(
-        left_right_ratio=0.9,
+        left_right_ratio=0.5,
         sed_settled_density=120.0,
         sed_base_density=350.0,
         sed_percent_to_settle=0.3,
     )
     cs = CollectionSection(seed_cell=sc, number_of_cells=50, collector=cp)
 
-    cs.run_model()
+    cs.run_model(stop=30)
     fig = cs.get_plotly_graph(continuous_colours=True)
     fig.write_html("first_figure.html", auto_open=True)
