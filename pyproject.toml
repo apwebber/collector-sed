@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "collector-sed"
+version = "0.1.0"
+description = ""
+authors = ["Alex <alexpwebber@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11.3"
+dash = "^2.17.0"
+plotly = "^5.22.0"
+pandas = "^2.2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
