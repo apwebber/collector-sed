@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 @dataclass
@@ -14,7 +15,12 @@ class SedimentBed:
 
     def __post_init__(self):
         self.bed_layers = pd.DataFrame(
-            {"top": [0.0], "bottom": [-9999], "type": ["bed"], "name": ["existing"]}
+            {
+                "top": [self.bed_top],
+                "bottom": [-0.2],
+                "type": ["bed"],
+                "name": ["existing"],
+            }
         )
 
     def cut(self, cut_depth: float) -> Tuple[float, float]:
@@ -103,7 +109,7 @@ class SedCell:
         mass_collected = self._get_sediment_mass(cv)
 
         self.sed_to_pass_left = mass_collected * self.left_right_ratio
-        self.sed_to_pass_right = mass_collected = self.sed_to_pass_left
+        self.sed_to_pass_right = mass_collected - self.sed_to_pass_left
 
     def add_sediment(self, incoming_mass: float, direction: str, pass_name: str):
         mass_to_settle = incoming_mass * self.sed_percent_to_settle
@@ -137,7 +143,7 @@ class CollectionSection:
     number_of_cells: int
     collector: CollectorParams
     cells: List[SedCell] = field(default_factory=list)
-    mass_lower_limit: float = 0.001
+    mass_lower_limit: float = 0.01
 
     def __post_init__(self):
         self.cells = []
@@ -158,6 +164,32 @@ class CollectionSection:
         bed_tops = [c.sediment_bed.bed_top for c in self.cells]
         return settled_tops, bed_tops
 
+    def get_sections(self) -> pd.DataFrame:
+        df_all = pd.DataFrame()
+        for i, cell in enumerate(self.cells):
+            df = cell.sediment_bed.bed_layers
+            df["cell_number"] = i
+            df["thickness"] = df["top"] - df["bottom"]
+            df_all = pd.concat([df_all, df], ignore_index=True)
+
+        return df_all
+    
+    def get_plotly_graph(self, continuous_colours: bool = False) -> go.Figure:
+        df = self.get_sections()
+        
+        if continuous_colours:
+            df['name'] = pd.to_numeric(df['name'], errors='coerce')
+
+        fig = px.bar(
+            df,
+            x="cell_number",
+            y="thickness",
+            base='bottom',
+            color="name",
+        )
+        
+        return fig
+
     def _iterate_cells(self, pass_name: str):
         # Pass over the cells until all the sediment has
         # settled or passed out of scope
@@ -170,12 +202,10 @@ class CollectionSection:
                 if cell.sed_to_pass_left > self.mass_lower_limit:
                     passed_sediment = True
 
-                    try:
+                    if i != 0:
                         self.cells[i - 1].add_sediment(
                             cell.sed_to_pass_left, "left", pass_name
                         )
-                    except IndexError:
-                        pass
 
                     cell.sed_to_pass_left = 0.0
 
@@ -192,14 +222,17 @@ class CollectionSection:
                     cell.sed_to_pass_right = 0.0
 
 
+
 if __name__ == "__main__":
-    cp = CollectorParams(15, 0.1)
-    sc = SedCell(0.5, 120.0, 350.0, 0.3)
-    cs = CollectionSection(seed_cell=sc, number_of_cells=100, collector=cp)
+    cp = CollectorParams(collector_width=15, cut_depth=0.1)
+    sc = SedCell(
+        left_right_ratio=0.9,
+        sed_settled_density=120.0,
+        sed_base_density=350.0,
+        sed_percent_to_settle=0.3,
+    )
+    cs = CollectionSection(seed_cell=sc, number_of_cells=50, collector=cp)
 
     cs.run_model()
-    tops = cs.get_tops()
-    print(tops)
-    df = pd.DataFrame({"Settled top": tops[0], "Bed top": tops[1]})
-    fig = px.line(df)
+    fig = cs.get_plotly_graph(continuous_colours=True)
     fig.write_html("first_figure.html", auto_open=True)
