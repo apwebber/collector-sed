@@ -120,7 +120,10 @@ app.layout = [
             ),
         ],
         style={"display": "flex", "flexDirection": "row"},
-    )
+    ),
+    html.Div(
+        [html.P("")],
+    ),
 ]
 
 
@@ -157,8 +160,8 @@ def run_model(
         number_of_cells=cells,
         stop=stop,
     )
-    
-    fig['layout'] = old_fig['layout']
+
+    fig["layout"] = old_fig["layout"]
     return fig
 
 

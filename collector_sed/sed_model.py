@@ -110,8 +110,7 @@ class SedCell:
         
         # Don't forget to settle some ON this cell
         mass_to_settle = mass_collected * self.sed_percent_to_settle
-        settled_thickness = mass_to_settle / self.sed_settled_density
-        self.sediment_bed.settle(settled_thickness, pass_name)
+        self._settle(mass_to_settle, pass_name)
 
         mass_to_pass = mass_collected - mass_to_settle
         self.sed_to_pass_left = mass_to_pass * self.left_right_ratio
@@ -119,8 +118,7 @@ class SedCell:
 
     def add_sediment(self, incoming_mass: float, direction: str, pass_name: str):
         mass_to_settle = incoming_mass * self.sed_percent_to_settle
-        settled_thickness = mass_to_settle / self.sed_settled_density
-        self.sediment_bed.settle(settled_thickness, pass_name)
+        self._settle(mass_to_settle, pass_name)
 
         if direction == "left":
             self.sed_to_pass_left = incoming_mass - mass_to_settle
@@ -128,6 +126,10 @@ class SedCell:
             self.sed_to_pass_right = incoming_mass - mass_to_settle
         else:
             raise ValueError(f"Unknown direction: {direction}")
+        
+    def _settle(self, mass: float, name: str):
+        settled_thickness = mass / self.sed_settled_density
+        self.sediment_bed.settle(settled_thickness, name)
 
     def _get_sediment_mass(self, cv: CollectorParams):
         # Get sediment mass taken by collector
