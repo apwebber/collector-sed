@@ -82,7 +82,7 @@ class SedimentBed:
 
 @dataclass
 class CollectorParams:
-    collector_width: float
+    #collector_width: float
     cut_depth: float
 
 
@@ -105,11 +105,17 @@ class SedCell:
     # state
     sediment_bed: SedimentBed = field(default_factory=SedimentBed)
 
-    def apply_collector(self, cv: CollectorParams):
+    def apply_collector(self, cv: CollectorParams, pass_name: str):
         mass_collected = self._get_sediment_mass(cv)
+        
+        # Don't forget to settle some ON this cell
+        mass_to_settle = mass_collected * self.sed_percent_to_settle
+        settled_thickness = mass_to_settle / self.sed_settled_density
+        self.sediment_bed.settle(settled_thickness, pass_name)
 
-        self.sed_to_pass_left = mass_collected * self.left_right_ratio
-        self.sed_to_pass_right = mass_collected - self.sed_to_pass_left
+        mass_to_pass = mass_collected - mass_to_settle
+        self.sed_to_pass_left = mass_to_pass * self.left_right_ratio
+        self.sed_to_pass_right = mass_to_pass - self.sed_to_pass_left
 
     def add_sediment(self, incoming_mass: float, direction: str, pass_name: str):
         mass_to_settle = incoming_mass * self.sed_percent_to_settle
@@ -157,7 +163,7 @@ class CollectionSection:
         for i, c in enumerate(self.cells):
             if stop is not None and i == stop:
                 break
-            c.apply_collector(self.collector)
+            c.apply_collector(self.collector, str(i))
             self._iterate_cells(str(i))
 
     def get_tops(self) -> Tuple[list, list]:
@@ -189,6 +195,13 @@ class CollectionSection:
             base='bottom',
             color="name",
         )
+        fig.update_layout(
+            #barmode='group',
+            bargap=0.0,
+            #bargroupgap=0.0
+        )
+        
+        fig.data[0].marker.line.width = 0
         
         return fig
 
@@ -226,7 +239,7 @@ class CollectionSection:
 
 
 if __name__ == "__main__":
-    cp = CollectorParams(collector_width=15, cut_depth=0.1)
+    cp = CollectorParams(cut_depth=0.1)
     sc = SedCell(
         left_right_ratio=0.5,
         sed_settled_density=120.0,
