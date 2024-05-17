@@ -1,5 +1,6 @@
 # Import packages
 from dash import Dash, html, dcc, Output, Input, State, callback
+import dash_bootstrap_components as dbc
 import pandas as pd
 
 from collector_sed.sed_model import CollectorParams, SedCell, CollectionSection
@@ -33,98 +34,93 @@ df = pd.read_csv(
 )
 
 # Initialize the app
-app = Dash()
+app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# App layout
-app.layout = [
-    html.Div(
+controls = [
+    dbc.Col(
         [
-            html.Div(
-                children=[
-                    html.Label("Cut depth (m)"),
-                    dcc.Slider(
-                        step=0.01,
-                        min=0,
-                        max=0.5,
-                        value=0.1,
-                        id="cut-depth-slider",
-                        marks=None,
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Left to right ratio"),
-                    dcc.Slider(
-                        step=0.1,
-                        min=0,
-                        max=1,
-                        value=0.5,
-                        id="left-right-slider",
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Percent to settle"),
-                    dcc.Slider(
-                        step=0.01,
-                        min=0,
-                        max=1,
-                        value=0.3,
-                        id="percent-sttle-slider",
-                        marks=None,
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Settled density"),
-                    dcc.Slider(
-                        step=1,
-                        min=100,
-                        max=400,
-                        value=150,
-                        marks=None,
-                        id="settled-density-slider",
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Base density"),
-                    dcc.Slider(
-                        step=1,
-                        min=100,
-                        max=500,
-                        value=350,
-                        marks=None,
-                        id="base-density-slider",
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Number of cells"),
-                    dcc.Slider(
-                        step=1,
-                        min=5,
-                        max=50,
-                        value=50,
-                        marks=None,
-                        id="cells-slider",
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Label("Stop on cell"),
-                    dcc.Slider(
-                        step=1,
-                        min=1,
-                        max=50,
-                        value=50,
-                        marks=None,
-                        id="stop-slider",
-                        tooltip={"placement": "bottom", "always_visible": True},
-                    ),
-                    html.Button("Run", id="run-button", n_clicks=0),
-                ],
-                style={"padding": 10, "flex": 1},
+            html.Label("Cut depth (m)"),
+            dcc.Slider(
+                step=0.01,
+                min=0,
+                max=0.5,
+                value=0.1,
+                id="cut-depth-slider",
+                marks=None,
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
-            html.Div(
-                children=[dcc.Graph(figure=draw_fig(), id="graph")],
-                style={"padding": 10, "flex": 3},
+            html.Label("Left to right ratio"),
+            dcc.Slider(
+                step=0.1,
+                min=0,
+                max=1,
+                value=0.5,
+                id="left-right-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
-        ],
-        style={"display": "flex", "flexDirection": "row"},
+            html.Label("Percent to settle"),
+            dcc.Slider(
+                step=0.01,
+                min=0,
+                max=1,
+                value=0.3,
+                id="percent-sttle-slider",
+                marks=None,
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Label("Settled density"),
+            dcc.Slider(
+                step=1,
+                min=100,
+                max=400,
+                value=150,
+                marks=None,
+                id="settled-density-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+        ]
     ),
-    html.Div(
-        [html.P("")],
+    dbc.Col(
+        [
+            html.Label("Base density"),
+            dcc.Slider(
+                step=1,
+                min=100,
+                max=500,
+                value=350,
+                marks=None,
+                id="base-density-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Label("Number of cells"),
+            dcc.Slider(
+                step=1,
+                min=5,
+                max=50,
+                value=50,
+                marks=None,
+                id="cells-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Label("Stop on cell"),
+            dcc.Slider(
+                step=1,
+                min=1,
+                max=50,
+                value=50,
+                marks=None,
+                id="stop-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Button("Run", id="run-button", n_clicks=0),
+        ]
     ),
 ]
+
+
+graph = dbc.Col([html.Div(dcc.Graph(figure=draw_fig(), id="graph"))])
+
+app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
 
 
 @callback(
