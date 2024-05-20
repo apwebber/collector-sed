@@ -158,13 +158,25 @@ class CollectionSection:
         for _ in range(self.number_of_cells):
             self.cells.append(copy.deepcopy(self.seed_cell))
 
-    def run_model(self, stop: int = None):
+    def run_model(self, start: int = None, stop: int = None):
         # Iterate over cells from right to left appling the
         # Collector vehicle
+        
+        if start is None:
+            start = 0
+            
+        if stop is None:
+            stop = self.number_of_cells
+            
+        if start > stop:
+            return
 
-        for i, c in enumerate(self.cells):
+        for i in range(start, stop):
             if stop is not None and i == stop:
                 break
+            
+            c = self.cells[i]
+            
             c.apply_collector(self.collector, str(i))
             self._iterate_cells(str(i))
 

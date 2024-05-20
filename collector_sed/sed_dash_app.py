@@ -5,6 +5,7 @@ import pandas as pd
 
 from collector_sed.sed_model import CollectorParams, SedCell, CollectionSection
 
+MAX_CELLS = 50
 
 def draw_fig(
     cut_depth: float = 0.1,
@@ -13,6 +14,7 @@ def draw_fig(
     sed_base_density: float = 350.0,
     sed_percent_to_settle: float = 0.3,
     number_of_cells: int = 50,
+    start: int = None,
     stop: int = None,
 ):
     cp = CollectorParams(cut_depth)
@@ -24,7 +26,7 @@ def draw_fig(
     )
     cs = CollectionSection(sc, number_of_cells, cp)
 
-    cs.run_model(stop)
+    cs.run_model(start, stop)
     return cs.get_plotly_graph(continuous_colours=True)
 
 
@@ -96,17 +98,27 @@ controls = [
             dcc.Slider(
                 step=1,
                 min=5,
-                max=50,
+                max=MAX_CELLS,
                 value=50,
                 marks=None,
                 id="cells-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Label("Start on cell"),
+            dcc.Slider(
+                step=1,
+                min=0,
+                max=MAX_CELLS,
+                value=1,
+                marks=None,
+                id="start-slider",
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
             html.Label("Stop on cell"),
             dcc.Slider(
                 step=1,
                 min=1,
-                max=50,
+                max=MAX_CELLS,
                 value=50,
                 marks=None,
                 id="stop-slider",
@@ -133,6 +145,7 @@ app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
     State("settled-density-slider", "value"),
     State("base-density-slider", "value"),
     State("cells-slider", "value"),
+    State("start-slider", "value"),
     State("stop-slider", "value"),
     prevent_initial_call=True,
 )
@@ -140,20 +153,22 @@ def run_model(
     _,
     old_fig,
     cut_depth,
-    left_right,
-    percent_settle,
-    settled_density,
-    base_density,
-    cells,
+    left_right_ratio,
+    sed_percent_settle,
+    sed_settled_density,
+    sed_base_density,
+    number_of_cells,
+    start,
     stop,
 ):
     fig = draw_fig(
         cut_depth=cut_depth,
-        left_right_ratio=left_right,
-        sed_percent_to_settle=percent_settle,
-        sed_settled_density=settled_density,
-        sed_base_density=base_density,
-        number_of_cells=cells,
+        left_right_ratio=left_right_ratio,
+        sed_percent_to_settle=sed_percent_settle,
+        sed_settled_density=sed_settled_density,
+        sed_base_density=sed_base_density,
+        number_of_cells=number_of_cells,
+        start=start,
         stop=stop,
     )
 
