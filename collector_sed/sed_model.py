@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 
 import pandas as pd
 import plotly.express as px
@@ -82,7 +82,7 @@ class SedimentBed:
 
 @dataclass
 class CollectorParams:
-    #collector_width: float
+    # collector_width: float
     cut_depth: float
 
 
@@ -107,7 +107,7 @@ class SedCell:
 
     def apply_collector(self, cv: CollectorParams, pass_name: str):
         mass_collected = self._get_sediment_mass(cv)
-        
+
         # Don't forget to settle some ON this cell
         mass_to_settle = mass_collected * self.sed_percent_to_settle
         self._settle(mass_to_settle, pass_name)
@@ -126,7 +126,7 @@ class SedCell:
             self.sed_to_pass_right = incoming_mass - mass_to_settle
         else:
             raise ValueError(f"Unknown direction: {direction}")
-        
+
     def _settle(self, mass: float, name: str):
         settled_thickness = mass / self.sed_settled_density
         self.sediment_bed.settle(settled_thickness, name)
@@ -161,22 +161,22 @@ class CollectionSection:
     def run_model(self, start: int = None, stop: int = None):
         # Iterate over cells from right to left appling the
         # Collector vehicle
-        
+
         if start is None:
             start = 0
-            
+
         if stop is None:
             stop = self.number_of_cells
-            
+
         if start > stop:
             return
 
         for i in range(start, stop):
             if stop is not None and i == stop:
                 break
-            
+
             c = self.cells[i]
-            
+
             c.apply_collector(self.collector, str(i))
             self._iterate_cells(str(i))
 
@@ -191,32 +191,36 @@ class CollectionSection:
         for i, cell in enumerate(self.cells):
             df = cell.sediment_bed.bed_layers
             df["cell_number"] = i
-            df["thickness"] = df["top"] - df["bottom"]
+
             df_all = pd.concat([df_all, df], ignore_index=True)
 
+        df_all["thickness"] = df_all["top"] - df_all["bottom"]
+        df_all["name"] = pd.to_numeric(df_all["name"], errors="coerce")
+        df_all["proximity"] = abs(df_all["name"] - df_all["cell_number"])
         return df_all
-    
-    def get_plotly_graph(self, continuous_colours: bool = False) -> go.Figure:
+
+    def get_plotly_graph(self, color_by: Literal["name", "proximity"]) -> go.Figure:
         df = self.get_sections()
-        
-        if continuous_colours:
-            df['name'] = pd.to_numeric(df['name'], errors='coerce')
+
+        if not color_by in ["name", "proximity"]:
+            raise ValueError("Unknown color by variable")
 
         fig = px.bar(
             df,
             x="cell_number",
             y="thickness",
-            base='bottom',
-            color="name",
+            base="bottom",
+            color=color_by,
         )
         fig.update_layout(
-            #barmode='group',
             bargap=0.0,
-            #bargroupgap=0.0
+            coloraxis_colorbar=dict(
+                title=color_by,
+            ),
         )
-        
+
         fig.data[0].marker.line.width = 0
-        
+
         return fig
 
     def _iterate_cells(self, pass_name: str):
@@ -249,7 +253,6 @@ class CollectionSection:
                         pass
 
                     cell.sed_to_pass_right = 0.0
-
 
 
 if __name__ == "__main__":

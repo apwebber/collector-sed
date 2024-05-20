@@ -7,6 +7,7 @@ from collector_sed.sed_model import CollectorParams, SedCell, CollectionSection
 
 MAX_CELLS = 50
 
+
 def draw_fig(
     cut_depth: float = 0.1,
     left_right_ratio: float = 0.5,
@@ -16,6 +17,7 @@ def draw_fig(
     number_of_cells: int = 50,
     start: int = None,
     stop: int = None,
+    colorby: str = "name",
 ):
     cp = CollectorParams(cut_depth)
     sc = SedCell(
@@ -27,7 +29,7 @@ def draw_fig(
     cs = CollectionSection(sc, number_of_cells, cp)
 
     cs.run_model(start, stop)
-    return cs.get_plotly_graph(continuous_colours=True)
+    return cs.get_plotly_graph(color_by=colorby)
 
 
 # Incorporate data
@@ -80,10 +82,6 @@ controls = [
                 id="settled-density-slider",
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
-        ]
-    ),
-    dbc.Col(
-        [
             html.Label("Base density"),
             dcc.Slider(
                 step=1,
@@ -94,6 +92,10 @@ controls = [
                 id="base-density-slider",
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
+        ]
+    ),
+    dbc.Col(
+        [
             html.Label("Number of cells"),
             dcc.Slider(
                 step=1,
@@ -124,7 +126,17 @@ controls = [
                 id="stop-slider",
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
-            html.Button("Run", id="run-button", n_clicks=0),
+            html.Label("Color by"),
+            dbc.RadioItems(
+                options=[
+                    {"label": "Horizon", "value": "name"},
+                    {"label": "Distance travelled", "value": "proximity"},
+                ],
+                value="name",
+                inline=True,
+                id="colorby-radio"
+            ),
+            dbc.Button("Run", color="success", id="run-button", n_clicks=0),
         ]
     ),
 ]
@@ -147,6 +159,7 @@ app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
     State("cells-slider", "value"),
     State("start-slider", "value"),
     State("stop-slider", "value"),
+    State("colorby-radio", "value"),
     prevent_initial_call=True,
 )
 def run_model(
@@ -160,6 +173,7 @@ def run_model(
     number_of_cells,
     start,
     stop,
+    colorby,
 ):
     fig = draw_fig(
         cut_depth=cut_depth,
@@ -170,6 +184,7 @@ def run_model(
         number_of_cells=number_of_cells,
         start=start,
         stop=stop,
+        colorby=colorby,
     )
 
     fig["layout"] = old_fig["layout"]
