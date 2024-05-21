@@ -7,6 +7,53 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+def cut_settled_only(bed_layers: pd.DataFrame, cut_depth: float) -> Tuple[pd.DataFrame, float]:
+    settled_layers = bed_layers[bed_layers["type"] == "settled"]
+    bed = bed_layers[bed_layers["type"] == "bed"]
+
+    if settled_layers.empty:
+        return bed_layers, 0.0
+
+    absolute_cut = settled_layers["top"].max() - cut_depth
+    df_partial_cut = settled_layers[settled_layers["bottom"] < absolute_cut]
+    df_partial_cut.reset_index(inplace=True, drop=True)
+    if not df_partial_cut.empty:
+        df_partial_cut.loc[0, "top"] = absolute_cut
+
+    final_bedlayers = pd.concat([df_partial_cut, bed], ignore_index=True)
+
+    settled_cut = abs(bed_layers["top"].values[0] - final_bedlayers["top"].values[0])
+
+    return final_bedlayers, settled_cut
+
+
+def cut_sedbed(
+    bed_layers: pd.DataFrame, cut_depth: float, cut_extra_settled: float = None
+) -> Tuple[pd.DataFrame, float, float]:
+    
+    if cut_extra_settled is not None:
+        precut_bed_layers, cut_settled = cut_settled_only(bed_layers, cut_extra_settled)
+    else:
+        cut_settled = 0.0
+        precut_bed_layers = bed_layers
+        
+    # Cut into the bed dataframe
+    absolute_cut = precut_bed_layers["top"].max() - cut_depth
+
+    # df_cut_complete = self.bed_layers[self.bed_layers['bottom'] >= absolute_cut]
+    df_partial_cut = precut_bed_layers[precut_bed_layers["bottom"] < absolute_cut]
+    df_partial_cut.reset_index(inplace=True, drop=True)
+    df_partial_cut.loc[0, "top"] = absolute_cut
+    new_bed_layers = df_partial_cut
+
+    # compare = bed_layers.compare(new_bed_layers)
+
+    cut_bed = abs(new_bed_layers["top"].values[-1] - bed_layers["top"].values[-1])
+    cut_settled += cut_depth - cut_bed
+
+    return new_bed_layers, cut_bed, cut_settled
+
+
 @dataclass
 class SedimentBed:
     bed_top: float = 0.0
@@ -23,43 +70,9 @@ class SedimentBed:
             }
         )
 
-    def cut(self, cut_depth: float) -> Tuple[float, float]:
-        # Cut into the bed by x amount
-        # returns thickness of bed cut, thickness of settled cut
-        cut_settled = 0.0
-        cut_bed = 0.0
-
-        # Cut into the bed dataframe
-        absolute_cut = self.settled_top - cut_depth
-
-        # df_cut_complete = self.bed_layers[self.bed_layers['bottom'] >= absolute_cut]
-        df_partial_cut = self.bed_layers[self.bed_layers["bottom"] < absolute_cut]
-        df_partial_cut.reset_index(inplace=True, drop=True)
-        df_partial_cut.loc[0, "top"] = absolute_cut
-        self.bed_layers = df_partial_cut
-
-        if self.bed_top == self.settled_top:
-            # no settled sediment
-            cut_bed = cut_depth
-
-            self.bed_top -= cut_bed
-            self.settled_top = self.bed_top
-        else:
-            settled_thickness = self.settled_top - self.bed_top
-
-            if cut_depth <= settled_thickness:
-                # Only the settled sediment is cut
-
-                cut_settled = cut_depth
-                self.settled_top -= cut_settled
-            else:
-                # All the settled sediment and some amount of the
-                # bed is cut
-                cut_settled = settled_thickness
-                cut_bed = cut_depth - settled_thickness
-
-                self.bed_top -= cut_bed
-                self.settled_top = self.bed_top
+    def cut(self, cut_depth: float, cut_extra_settled: float = None) -> Tuple[float, float]:
+        new_bed_layers, cut_bed, cut_settled = cut_sedbed(self.bed_layers, cut_depth, cut_extra_settled)
+        self.bed_layers = new_bed_layers
 
         return cut_bed, cut_settled
 
@@ -84,6 +97,7 @@ class SedimentBed:
 class CollectorParams:
     # collector_width: float
     cut_depth: float
+    extra_settled_cut_depth: float = None
 
 
 @dataclass
@@ -136,7 +150,7 @@ class SedCell:
 
         # First get from the settled
 
-        cut_bed, cut_settled = self.sediment_bed.cut(cv.cut_depth)
+        cut_bed, cut_settled = self.sediment_bed.cut(cv.cut_depth, cv.extra_settled_cut_depth)
 
         total_mass = (cut_settled * self.sed_settled_density) + (
             cut_bed * self.sed_base_density

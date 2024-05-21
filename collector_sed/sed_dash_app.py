@@ -10,6 +10,7 @@ MAX_CELLS = 50
 
 def draw_fig(
     cut_depth: float = 0.1,
+    extra_settled_cut_depth: float = 0.1,
     left_right_ratio: float = 0.5,
     sed_settled_density: float = 120.0,
     sed_base_density: float = 350.0,
@@ -19,7 +20,7 @@ def draw_fig(
     stop: int = None,
     colorby: str = "name",
 ):
-    cp = CollectorParams(cut_depth)
+    cp = CollectorParams(cut_depth, extra_settled_cut_depth)
     sc = SedCell(
         left_right_ratio,
         sed_settled_density,
@@ -50,6 +51,16 @@ controls = [
                 max=0.5,
                 value=0.1,
                 id="cut-depth-slider",
+                marks=None,
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
+            html.Label("Extra cut depth for settled sediment (m)"),
+            dcc.Slider(
+                step=0.01,
+                min=0,
+                max=0.5,
+                value=0.1,
+                id="cut-depth-extra-slider",
                 marks=None,
                 tooltip={"placement": "bottom", "always_visible": True},
             ),
@@ -152,6 +163,7 @@ app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
     Input("run-button", "n_clicks"),
     State("graph", "figure"),
     State("cut-depth-slider", "value"),
+    State("cut-depth-extra-slider", "value"),
     State("left-right-slider", "value"),
     State("percent-sttle-slider", "value"),
     State("settled-density-slider", "value"),
@@ -166,6 +178,7 @@ def run_model(
     _,
     old_fig,
     cut_depth,
+    cut_depth_extra,
     left_right_ratio,
     sed_percent_settle,
     sed_settled_density,
@@ -177,6 +190,7 @@ def run_model(
 ):
     fig = draw_fig(
         cut_depth=cut_depth,
+        extra_settled_cut_depth=cut_depth_extra,
         left_right_ratio=left_right_ratio,
         sed_percent_to_settle=sed_percent_settle,
         sed_settled_density=sed_settled_density,
