@@ -235,7 +235,7 @@ class CollectionSection:
 
             df_all = pd.concat([df_all, df], ignore_index=True)
 
-        df_all["thickness"] = df_all["top"] - df_all["bottom"]
+        df_all["thickness"] = abs(df_all["bottom"] - df_all["top"])
         df_all["origin_cell"] = pd.to_numeric(df_all["origin_cell"], errors="coerce")
         df_all["proximity"] = abs(df_all["origin_cell"] - df_all["cell_number"])
         return df_all
@@ -255,12 +255,20 @@ class CollectionSection:
             y="thickness",
             base="bottom",
             color=color_by,
+            hover_name='cell_number',
+            hover_data={
+                'top': False,
+                'bottom': False,
+                'thickness': False, # For some reason thickness is displaying the wrong value (top)
+                'cell_number': False,
+                'name': True
+            }
         )
         fig.update_layout(
             bargap=0.0,
             coloraxis_colorbar=dict(
                 title=color_by,
-            ),
+            )
         )
 
         fig.data[0].marker.line.width = 0
