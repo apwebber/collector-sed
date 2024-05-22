@@ -67,6 +67,7 @@ class SedimentBed:
                 "bottom": [-0.2],
                 "type": ["bed"],
                 "name": ["existing"],
+                "origin_cell": [None]
             }
         )
 
@@ -76,7 +77,7 @@ class SedimentBed:
 
         return cut_bed, cut_settled
 
-    def settle(self, settle_thickness, name: str):
+    def settle(self, settle_thickness, name: str, origin_cell: int):
         self.settled_top += settle_thickness
 
         current_top = self.bed_layers["top"].max()
@@ -88,6 +89,7 @@ class SedimentBed:
                 "bottom": [current_top],
                 "type": ["settled"],
                 "name": [name],
+                "origin_cell": [origin_cell]
             }
         )
         self.bed_layers = pd.concat([new_layer, self.bed_layers], ignore_index=True)
@@ -119,20 +121,20 @@ class SedCell:
     # state
     sediment_bed: SedimentBed = field(default_factory=SedimentBed)
 
-    def apply_collector(self, cv: CollectorParams, pass_name: str):
+    def apply_collector(self, cv: CollectorParams, pass_name: str, origin_cell: int):
         mass_collected = self._get_sediment_mass(cv)
 
         # Don't forget to settle some ON this cell
         mass_to_settle = mass_collected * self.sed_percent_to_settle
-        self._settle(mass_to_settle, pass_name)
+        self._settle(mass_to_settle, pass_name, origin_cell)
 
         mass_to_pass = mass_collected - mass_to_settle
         self.sed_to_pass_left = mass_to_pass * self.left_right_ratio
         self.sed_to_pass_right = mass_to_pass - self.sed_to_pass_left
 
-    def add_sediment(self, incoming_mass: float, direction: str, pass_name: str):
+    def add_sediment(self, incoming_mass: float, direction: str, pass_name: str, origin_cell: int):
         mass_to_settle = incoming_mass * self.sed_percent_to_settle
-        self._settle(mass_to_settle, pass_name)
+        self._settle(mass_to_settle, pass_name, origin_cell)
 
         if direction == "left":
             self.sed_to_pass_left = incoming_mass - mass_to_settle
@@ -141,9 +143,9 @@ class SedCell:
         else:
             raise ValueError(f"Unknown direction: {direction}")
 
-    def _settle(self, mass: float, name: str):
+    def _settle(self, mass: float, name: str, origin_cell: int):
         settled_thickness = mass / self.sed_settled_density
-        self.sediment_bed.settle(settled_thickness, name)
+        self.sediment_bed.settle(settled_thickness, name, origin_cell)
 
     def _get_sediment_mass(self, cv: CollectorParams):
         # Get sediment mass taken by collector
@@ -201,8 +203,8 @@ class CollectionSection:
     def _run_on_cell(self, i: int, label: str):
         c = self.cells[i]
 
-        c.apply_collector(self.collector, label)
-        self._iterate_cells(label)
+        c.apply_collector(self.collector, label, i)
+        self._iterate_cells(label, i)
 
     def get_tops(self) -> Tuple[list, list]:
         # Get a list of settled tops and bed tops
@@ -219,8 +221,8 @@ class CollectionSection:
             df_all = pd.concat([df_all, df], ignore_index=True)
 
         df_all["thickness"] = df_all["top"] - df_all["bottom"]
-        df_all["name"] = pd.to_numeric(df_all["name"], errors="coerce")
-        df_all["proximity"] = abs(df_all["name"] - df_all["cell_number"])
+        df_all["origin_cell"] = pd.to_numeric(df_all["origin_cell"], errors="coerce")
+        df_all["proximity"] = abs(df_all["origin_cell"] - df_all["cell_number"])
         return df_all
 
     def get_plotly_graph(self, color_by: Literal["name", "proximity"]) -> go.Figure:
@@ -228,6 +230,9 @@ class CollectionSection:
 
         if not color_by in ["name", "proximity"]:
             raise ValueError("Unknown color by variable")
+        
+        if color_by == "name":
+            df["name"] = pd.to_numeric(df["name"], errors="coerce")
 
         fig = px.bar(
             df,
@@ -247,7 +252,7 @@ class CollectionSection:
 
         return fig
 
-    def _iterate_cells(self, pass_name: str):
+    def _iterate_cells(self, pass_name: str, origin_cell: int):
         # Pass over the cells until all the sediment has
         # settled or passed out of scope
 
@@ -261,7 +266,7 @@ class CollectionSection:
 
                     if i != 0:
                         self.cells[i - 1].add_sediment(
-                            cell.sed_to_pass_left, "left", pass_name
+                            cell.sed_to_pass_left, "left", pass_name, origin_cell
                         )
 
                     cell.sed_to_pass_left = 0.0
@@ -271,7 +276,7 @@ class CollectionSection:
 
                     try:
                         self.cells[i + 1].add_sediment(
-                            cell.sed_to_pass_right, "right", pass_name
+                            cell.sed_to_pass_right, "right", pass_name, origin_cell
                         )
                     except IndexError:
                         pass

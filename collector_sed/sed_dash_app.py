@@ -143,7 +143,7 @@ controls = [
             html.Label("Stop on cell"),
             dcc.Slider(
                 step=1,
-                min=1,
+                min=0,
                 max=MAX_CELLS,
                 value=END_CELL,
                 marks=None,
@@ -161,7 +161,7 @@ controls = [
                 id="colorby-radio",
             ),
             dbc.Button("Run", color="success", id="run-button", n_clicks=0, className="m-3"),
-            dbc.Button("Reset extra cells", id="reset-extra", color="warning", n_clicks=0, className="me-1"),
+            dbc.Button("Reset clicked cells", id="reset-extra", color="warning", n_clicks=0, className="me-1"),
             dcc.Store(id="data-store", storage_type="session"),
         ]
     ),
