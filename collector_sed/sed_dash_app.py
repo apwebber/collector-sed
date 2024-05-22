@@ -8,6 +8,7 @@ from collector_sed.sed_model import CollectorParams, SedCell, CollectionSection
 
 MAX_CELLS = 50
 CUT_DEPTH = 0.1
+PROPORTION_UP_RISER = 0.0
 EXTRA_SETTLED_CUT_DEPTH = 0.0
 LEFT_RIGHT_RATIO = 0.5
 SETTLED_DENSITY = 120.0
@@ -21,7 +22,7 @@ EXTRA_CELLS = []
 
 HELP_TEXT = """This app roughly simulates the action of the collector vehicle traversing the seafloor and redistributing sediment laterally along the seafloor. The view is a cross section of the seafloor with the collector vehicle moving into and out of the screen. Each "cell" is one collector track.
 
-Change the settings and set the start and stop cells, then click `Run`. The seafloor can also be clicked to pass the collector through that cell.
+Change the settings and set the `Start` and `Stop` cells, then click `Run`. The seafloor can also be clicked to pass the collector through that cell after the cells defined by `Start` and `Stop`.
 
 Settings:
 
@@ -53,6 +54,7 @@ Settings:
 def draw_fig(
     cut_depth: float = CUT_DEPTH,
     extra_settled_cut_depth: float = EXTRA_SETTLED_CUT_DEPTH,
+    proportion_up_riser: float = PROPORTION_UP_RISER,
     left_right_ratio: float = LEFT_RIGHT_RATIO,
     sed_settled_density: float = SETTLED_DENSITY,
     sed_base_density: float = BASE_DENSITY,
@@ -63,7 +65,7 @@ def draw_fig(
     colorby: str = COLORBY,
     extra_cells: list[int] = EXTRA_CELLS,
 ):
-    cp = CollectorParams(cut_depth, extra_settled_cut_depth)
+    cp = CollectorParams(cut_depth, proportion_up_riser, extra_settled_cut_depth)
     sc = SedCell(
         left_right_ratio,
         sed_settled_density,
@@ -159,7 +161,17 @@ controls = [
         ]
     ),
     dbc.Col(
-        [
+        [   
+            html.Label("Proportion of sediment up riser"),
+            dcc.Slider(
+                step=0.01,
+                min=0.0,
+                max=1.0,
+                value=PROPORTION_UP_RISER,
+                marks=None,
+                id="riser-slider",
+                tooltip={"placement": "bottom", "always_visible": True},
+            ),
             html.Label("Number of cells"),
             dcc.Slider(
                 step=1,
@@ -236,6 +248,7 @@ app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
     State("percent-sttle-slider", "value"),
     State("settled-density-slider", "value"),
     State("base-density-slider", "value"),
+    State("riser-slider", "value"),
     State("cells-slider", "value"),
     State("start-slider", "value"),
     State("stop-slider", "value"),
@@ -254,6 +267,7 @@ def make_graph(
     sed_percent_settle,
     sed_settled_density,
     sed_base_density,
+    proportion_up_riser,
     number_of_cells,
     start,
     stop,
@@ -274,6 +288,7 @@ def make_graph(
     fig = draw_fig(
         cut_depth=cut_depth,
         extra_settled_cut_depth=cut_depth_extra,
+        proportion_up_riser=proportion_up_riser,
         left_right_ratio=left_right_ratio,
         sed_percent_to_settle=sed_percent_settle,
         sed_settled_density=sed_settled_density,

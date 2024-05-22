@@ -7,7 +7,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-def cut_settled_only(bed_layers: pd.DataFrame, cut_depth: float) -> Tuple[pd.DataFrame, float]:
+def cut_settled_only(
+    bed_layers: pd.DataFrame, cut_depth: float
+) -> Tuple[pd.DataFrame, float]:
     settled_layers = bed_layers[bed_layers["type"] == "settled"]
     bed = bed_layers[bed_layers["type"] == "bed"]
 
@@ -30,13 +32,12 @@ def cut_settled_only(bed_layers: pd.DataFrame, cut_depth: float) -> Tuple[pd.Dat
 def cut_sedbed(
     bed_layers: pd.DataFrame, cut_depth: float, cut_extra_settled: float = None
 ) -> Tuple[pd.DataFrame, float, float]:
-    
     if cut_extra_settled is not None:
         precut_bed_layers, cut_settled = cut_settled_only(bed_layers, cut_extra_settled)
     else:
         cut_settled = 0.0
         precut_bed_layers = bed_layers
-        
+
     # Cut into the bed dataframe
     absolute_cut = precut_bed_layers["top"].max() - cut_depth
 
@@ -67,12 +68,16 @@ class SedimentBed:
                 "bottom": [-0.2],
                 "type": ["bed"],
                 "name": ["existing"],
-                "origin_cell": [None]
+                "origin_cell": [None],
             }
         )
 
-    def cut(self, cut_depth: float, cut_extra_settled: float = None) -> Tuple[float, float]:
-        new_bed_layers, cut_bed, cut_settled = cut_sedbed(self.bed_layers, cut_depth, cut_extra_settled)
+    def cut(
+        self, cut_depth: float, cut_extra_settled: float = None
+    ) -> Tuple[float, float]:
+        new_bed_layers, cut_bed, cut_settled = cut_sedbed(
+            self.bed_layers, cut_depth, cut_extra_settled
+        )
         self.bed_layers = new_bed_layers
 
         return cut_bed, cut_settled
@@ -89,7 +94,7 @@ class SedimentBed:
                 "bottom": [current_top],
                 "type": ["settled"],
                 "name": [name],
-                "origin_cell": [origin_cell]
+                "origin_cell": [origin_cell],
             }
         )
         self.bed_layers = pd.concat([new_layer, self.bed_layers], ignore_index=True)
@@ -99,6 +104,7 @@ class SedimentBed:
 class CollectorParams:
     # collector_width: float
     cut_depth: float
+    proportion_up_riser: float
     extra_settled_cut_depth: float = None
 
 
@@ -122,8 +128,11 @@ class SedCell:
     sediment_bed: SedimentBed = field(default_factory=SedimentBed)
 
     def apply_collector(self, cv: CollectorParams, pass_name: str, origin_cell: int):
-        mass_collected = self._get_sediment_mass(cv)
+        mass_collected_pre_riser = self._get_sediment_mass(cv)
 
+        # Take away proportion for the riser
+        mass_collected = mass_collected_pre_riser * (1 - cv.proportion_up_riser)
+        
         # Don't forget to settle some ON this cell
         mass_to_settle = mass_collected * self.sed_percent_to_settle
         self._settle(mass_to_settle, pass_name, origin_cell)
@@ -132,7 +141,9 @@ class SedCell:
         self.sed_to_pass_left = mass_to_pass * self.left_right_ratio
         self.sed_to_pass_right = mass_to_pass - self.sed_to_pass_left
 
-    def add_sediment(self, incoming_mass: float, direction: str, pass_name: str, origin_cell: int):
+    def add_sediment(
+        self, incoming_mass: float, direction: str, pass_name: str, origin_cell: int
+    ):
         mass_to_settle = incoming_mass * self.sed_percent_to_settle
         self._settle(mass_to_settle, pass_name, origin_cell)
 
@@ -152,7 +163,9 @@ class SedCell:
 
         # First get from the settled
 
-        cut_bed, cut_settled = self.sediment_bed.cut(cv.cut_depth, cv.extra_settled_cut_depth)
+        cut_bed, cut_settled = self.sediment_bed.cut(
+            cv.cut_depth, cv.extra_settled_cut_depth
+        )
 
         total_mass = (cut_settled * self.sed_settled_density) + (
             cut_bed * self.sed_base_density
@@ -174,7 +187,9 @@ class CollectionSection:
         for _ in range(self.number_of_cells):
             self.cells.append(copy.deepcopy(self.seed_cell))
 
-    def run_model(self, start: int = None, stop: int = None, extra_cells: list[int] = []):
+    def run_model(
+        self, start: int = None, stop: int = None, extra_cells: list[int] = []
+    ):
         # Iterate over cells from right to left appling the
         # Collector vehicle
 
@@ -188,18 +203,18 @@ class CollectionSection:
             return
 
         label = 0
-        
+
         for i in range(start, stop):
             if stop is not None and i == stop:
                 break
 
             self._run_on_cell(i, str(label))
             label += 1
-            
+
         for i in extra_cells:
             self._run_on_cell(i, label)
             label += 1
-            
+
     def _run_on_cell(self, i: int, label: str):
         c = self.cells[i]
 
@@ -230,7 +245,7 @@ class CollectionSection:
 
         if not color_by in ["name", "proximity"]:
             raise ValueError("Unknown color by variable")
-        
+
         if color_by == "name":
             df["name"] = pd.to_numeric(df["name"], errors="coerce")
 
@@ -285,7 +300,7 @@ class CollectionSection:
 
 
 if __name__ == "__main__":
-    cp = CollectorParams(cut_depth=0.1)
+    cp = CollectorParams(cut_depth=0.1, proportion_up_riser=0.0)
     sc = SedCell(
         left_right_ratio=0.5,
         sed_settled_density=120.0,
