@@ -19,6 +19,9 @@ END_CELL = 30
 COLORBY = "name"
 EXTRA_CELLS = []
 
+with open("collector_sed/help_text.txt", "r") as f:
+    HELP_TEXT = f.read()
+
 
 def draw_fig(
     cut_depth: float = CUT_DEPTH,
@@ -31,7 +34,7 @@ def draw_fig(
     start: int = START_CELL,
     stop: int = END_CELL,
     colorby: str = COLORBY,
-    extra_cells: list[int] = EXTRA_CELLS
+    extra_cells: list[int] = EXTRA_CELLS,
 ):
     cp = CollectorParams(cut_depth, extra_settled_cut_depth)
     sc = SedCell(
@@ -53,6 +56,21 @@ df = pd.read_csv(
 
 # Initialize the app
 app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+help_modal_button = dbc.Button("Help...", id="open", n_clicks=0, color="link")
+
+help_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("Help")),
+        dbc.ModalBody(dcc.Markdown(HELP_TEXT)),
+        dbc.ModalFooter(
+            dbc.Button("Close", id="close", className="ms-auto", n_clicks=0)
+        ),
+    ],
+    id="modal",
+    is_open=False,
+    size="xl",
+)
 
 controls = [
     dbc.Col(
@@ -160,17 +178,27 @@ controls = [
                 inline=True,
                 id="colorby-radio",
             ),
-            dbc.Button("Run", color="success", id="run-button", n_clicks=0, className="m-3"),
-            dbc.Button("Reset clicked cells", id="reset-extra", color="warning", n_clicks=0, className="me-1"),
+            dbc.Button(
+                "Run", color="success", id="run-button", n_clicks=0, className="m-3"
+            ),
+            dbc.Button(
+                "Reset clicked cells",
+                id="reset-extra",
+                color="warning",
+                n_clicks=0,
+                className="me-1",
+            ),
+            help_modal_button,
+            help_modal,
             dcc.Store(id="data-store", storage_type="session"),
         ]
     ),
 ]
 
-
 graph = dbc.Col([html.Div(dcc.Graph(figure=draw_fig(), id="graph"))])
 
 app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
+
 
 @callback(
     Output("data-store", "data"),
@@ -209,8 +237,6 @@ def make_graph(
     stop,
     colorby,
 ):
-    
-
     if datastore is not None:
         labels = json.loads(datastore)
     else:
@@ -218,11 +244,11 @@ def make_graph(
 
     if ctx.triggered_id == "graph" and graph_click_data is not None:
         labels.append(graph_click_data["points"][0]["label"])
-        #labels = list(set(labels))
-        
+        # labels = list(set(labels))
+
     if ctx.triggered_id == "reset-extra":
         labels = []
-        
+
     fig = draw_fig(
         cut_depth=cut_depth,
         extra_settled_cut_depth=cut_depth_extra,
@@ -234,12 +260,23 @@ def make_graph(
         start=start,
         stop=stop,
         colorby=colorby,
-        extra_cells=labels
+        extra_cells=labels,
     )
 
     fig["layout"] = old_fig["layout"]
 
     return json.dumps(labels), fig
+
+
+@app.callback(
+    Output("modal", "is_open"),
+    [Input("open", "n_clicks"), Input("close", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 
 # Run the app
