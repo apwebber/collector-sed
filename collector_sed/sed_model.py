@@ -172,7 +172,7 @@ class CollectionSection:
         for _ in range(self.number_of_cells):
             self.cells.append(copy.deepcopy(self.seed_cell))
 
-    def run_model(self, start: int = None, stop: int = None):
+    def run_model(self, start: int = None, stop: int = None, extra_cells: list[int] = []):
         # Iterate over cells from right to left appling the
         # Collector vehicle
 
@@ -185,14 +185,24 @@ class CollectionSection:
         if start > stop:
             return
 
+        label = 0
+        
         for i in range(start, stop):
             if stop is not None and i == stop:
                 break
 
-            c = self.cells[i]
+            self._run_on_cell(i, str(label))
+            label += 1
+            
+        for i in extra_cells:
+            self._run_on_cell(i, label)
+            label += 1
+            
+    def _run_on_cell(self, i: int, label: str):
+        c = self.cells[i]
 
-            c.apply_collector(self.collector, str(i))
-            self._iterate_cells(str(i))
+        c.apply_collector(self.collector, label)
+        self._iterate_cells(label)
 
     def get_tops(self) -> Tuple[list, list]:
         # Get a list of settled tops and bed tops

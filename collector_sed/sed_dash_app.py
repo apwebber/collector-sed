@@ -1,5 +1,6 @@
 # Import packages
-from dash import Dash, html, dcc, Output, Input, State, callback
+import json
+from dash import Dash, html, dcc, Output, Input, State, callback, ctx
 import dash_bootstrap_components as dbc
 import pandas as pd
 
@@ -15,7 +16,8 @@ PERCENT_TO_SETTLE = 0.1
 NUMBER_OF_CELLS = 50
 START_CELL = 20
 END_CELL = 30
-COLORBY = 'name'
+COLORBY = "name"
+EXTRA_CELLS = []
 
 
 def draw_fig(
@@ -29,6 +31,7 @@ def draw_fig(
     start: int = START_CELL,
     stop: int = END_CELL,
     colorby: str = COLORBY,
+    extra_cells: list[int] = EXTRA_CELLS
 ):
     cp = CollectorParams(cut_depth, extra_settled_cut_depth)
     sc = SedCell(
@@ -39,7 +42,7 @@ def draw_fig(
     )
     cs = CollectionSection(sc, number_of_cells, cp)
 
-    cs.run_model(start, stop)
+    cs.run_model(start, stop, extra_cells=extra_cells)
     return cs.get_plotly_graph(color_by=colorby)
 
 
@@ -155,9 +158,11 @@ controls = [
                 ],
                 value=COLORBY,
                 inline=True,
-                id="colorby-radio"
+                id="colorby-radio",
             ),
-            dbc.Button("Run", color="success", id="run-button", n_clicks=0),
+            dbc.Button("Run", color="success", id="run-button", n_clicks=0, className="m-3"),
+            dbc.Button("Reset extra cells", id="reset-extra", color="warning", n_clicks=0, className="me-1"),
+            dcc.Store(id="data-store", storage_type="session"),
         ]
     ),
 ]
@@ -167,10 +172,13 @@ graph = dbc.Col([html.Div(dcc.Graph(figure=draw_fig(), id="graph"))])
 
 app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
 
-
 @callback(
-    Output("graph", "figure"),
+    Output("data-store", "data"),
+    Output("graph", "figure", allow_duplicate=True),
     Input("run-button", "n_clicks"),
+    Input("reset-extra", "n_clicks"),
+    Input("graph", "clickData"),
+    State("data-store", "data"),
     State("graph", "figure"),
     State("cut-depth-slider", "value"),
     State("cut-depth-extra-slider", "value"),
@@ -184,8 +192,11 @@ app.layout = [dbc.Container([dbc.Row(controls), dbc.Row(graph)], fluid=True)]
     State("colorby-radio", "value"),
     prevent_initial_call=True,
 )
-def run_model(
+def make_graph(
     _,
+    __,
+    graph_click_data,
+    datastore,
     old_fig,
     cut_depth,
     cut_depth_extra,
@@ -198,6 +209,20 @@ def run_model(
     stop,
     colorby,
 ):
+    
+
+    if datastore is not None:
+        labels = json.loads(datastore)
+    else:
+        labels = []
+
+    if ctx.triggered_id == "graph" and graph_click_data is not None:
+        labels.append(graph_click_data["points"][0]["label"])
+        #labels = list(set(labels))
+        
+    if ctx.triggered_id == "reset-extra":
+        labels = []
+        
     fig = draw_fig(
         cut_depth=cut_depth,
         extra_settled_cut_depth=cut_depth_extra,
@@ -209,10 +234,12 @@ def run_model(
         start=start,
         stop=stop,
         colorby=colorby,
+        extra_cells=labels
     )
 
     fig["layout"] = old_fig["layout"]
-    return fig
+
+    return json.dumps(labels), fig
 
 
 # Run the app
