@@ -38,6 +38,8 @@ Settings:
 
 * Base density - the dry bulk density of the original seafloor.
 
+* Proportion of sediment up riser - some proportion of sediment goes up the riser and is not deposited
+
 * Number of cells - effectively the width of the simulation.
 
 * Start and Stop cells - the simulation can be set to automatically run from cell Start to cell Stop, left to right.
