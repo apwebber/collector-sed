@@ -19,8 +19,35 @@ END_CELL = 30
 COLORBY = "name"
 EXTRA_CELLS = []
 
-with open("collector_sed/help_text.txt", "r") as f:
-    HELP_TEXT = f.read()
+HELP_TEXT = """This app roughly simulates the action of the collector vehicle traversing the seafloor and redistributing sediment laterally along the seafloor. The view is a cross section of the seafloor with the collector vehicle moving into and out of the screen. Each "cell" is one collector track.
+
+Change the settings and set the start and stop cells, then click `Run`. The seafloor can also be clicked to pass the collector through that cell.
+
+Settings:
+
+* Cut Depth - the depth that the collector vehicle cuts into the seafloor.
+
+* Extra cut depth -  An "extra" amount of cut can be set to take up more of the deposited sediment.
+
+* Left to right ratio - How much of the sediment goes left, and how much goes right. 1: all the sediment goes left, 0: all the sediment goes right.
+
+* Percent to settle - Proportion of the sediment that settles on each cell.
+
+* Settled density - the dry bulk density of the settled sediment.
+
+* Base density - the dry bulk density of the original seafloor.
+
+* Number of cells - effectively the width of the simulation.
+
+* Start and Stop cells - the simulation can be set to automatically run from cell Start to cell Stop, left to right.
+
+* Color by horizon - Each cell is colored by horizon, so all cells from the same settling event or collector pass have the same color.
+
+* Color by distance travelled - Each cell is covered by the distance that sediment travelled from the collector track where it originated.
+
+* Run - Run the simulation with the given Settings.
+
+* Reset clicked cells - Reset any cells that have been clicked."""
 
 
 def draw_fig(
@@ -48,11 +75,6 @@ def draw_fig(
     cs.run_model(start, stop, extra_cells=extra_cells)
     return cs.get_plotly_graph(color_by=colorby)
 
-
-# Incorporate data
-df = pd.read_csv(
-    "https://raw.githubusercontent.com/plotly/datasets/master/gapminder2007.csv"
-)
 
 # Initialize the app
 app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
