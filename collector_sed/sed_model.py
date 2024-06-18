@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+BED_BOTTOM = -0.2
 
 def cut_settled_only(
     bed_layers: pd.DataFrame, cut_depth: float
@@ -58,6 +59,7 @@ def cut_sedbed(
 @dataclass
 class SedimentBed:
     bed_top: float = 0.0
+    bed_bottom: float = BED_BOTTOM
     settled_top: float = 0.0
     bed_layers: pd.DataFrame = field(default_factory=pd.DataFrame)
 
@@ -65,7 +67,7 @@ class SedimentBed:
         self.bed_layers = pd.DataFrame(
             {
                 "top": [self.bed_top],
-                "bottom": [-0.2],
+                "bottom": [self.bed_bottom],
                 "type": ["bed"],
                 "name": ["existing"],
                 "origin_cell": [None],
@@ -236,8 +238,17 @@ class CollectionSection:
             df_all = pd.concat([df_all, df], ignore_index=True)
 
         df_all["thickness"] = abs(df_all["bottom"] - df_all["top"])
+        df_all['thickness2'] = df_all['thickness'] # hack because of the way px aggregates data, the original thickness is lost
+        total_thicknesses = df_all.groupby('cell_number').sum(numeric_only=True)['thickness2']
+        total_thicknesses += BED_BOTTOM
+        total_thicknesses.rename('total_thickness', inplace=True)
+        df_all = pd.merge(df_all, total_thicknesses, on='cell_number')
+
         df_all["origin_cell"] = pd.to_numeric(df_all["origin_cell"], errors="coerce")
         df_all["proximity"] = abs(df_all["origin_cell"] - df_all["cell_number"])
+        
+        
+        
         return df_all
 
     def get_plotly_graph(self, color_by: Literal["name", "proximity"]) -> go.Figure:
@@ -257,19 +268,22 @@ class CollectionSection:
             color=color_by,
             hover_name='cell_number',
             hover_data={
-                'top': False,
-                'bottom': False,
-                'thickness': False, # For some reason thickness is displaying the wrong value (top)
-                'cell_number': False,
-                'name': True
-            }
+                'top': True,
+                'bottom': True,
+                'thickness': True, # For some reason thickness is displaying the wrong value (top)
+                'cell_number': True,
+                'name': True,
+                'thickness2': True,
+                'total_thickness': True
+            },
         )
         fig.update_layout(
             bargap=0.0,
             coloraxis_colorbar=dict(
                 title=color_by,
-            )
+            ),
         )
+        fig.update_traces(hovertemplate="<b>Cell: %{hovertext}</b><br><br>Name=%{customdata[1]:.3f}<br>Top=%{y:.3f}<br>Bottom=%{base:.3f}<br>Thickness: %{customdata[2]:.3f}<br>Total thickness: %{customdata[3]:.3f}<br><extra></extra>")
 
         fig.data[0].marker.line.width = 0
 
