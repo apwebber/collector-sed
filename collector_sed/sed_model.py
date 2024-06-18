@@ -239,8 +239,8 @@ class CollectionSection:
 
         df_all["thickness"] = abs(df_all["bottom"] - df_all["top"])
         df_all['thickness2'] = df_all['thickness'] # hack because of the way px aggregates data, the original thickness is lost
-        total_thicknesses = df_all.groupby('cell_number').sum(numeric_only=True)['thickness2']
-        total_thicknesses += BED_BOTTOM
+        total_thicknesses = df_all[df_all['type'] == 'settled'].groupby('cell_number').sum(numeric_only=True)['thickness2']
+        total_thicknesses = abs(total_thicknesses)
         total_thicknesses.rename('total_thickness', inplace=True)
         df_all = pd.merge(df_all, total_thicknesses, on='cell_number')
 
